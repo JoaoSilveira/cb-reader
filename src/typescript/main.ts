@@ -91,3 +91,6 @@ processFlags().then(flags => {
         }
     });
 });
+
+Neutralino.init();
+Neutralino.events.on("windowClose", () => void (Neutralino.app.exit()));
