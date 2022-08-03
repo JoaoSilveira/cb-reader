@@ -1,5 +1,23 @@
-import { Data64URIWriter, Uint8ArrayReader, ZipReader } from '@zip.js/zip.js';
-import Elm, { InitArgs, PageEntry } from './elm';
+import Elm, { InitArgs } from './elm';
+
+const Images: Record<string, string> = {
+    ".apng": "image/apng",
+    ".avif": "image/avif",
+    ".gif": "image/gif",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".jfif": "image/jpeg",
+    ".pjpeg": "image/jpeg",
+    ".pjp": "image/jpeg",
+    ".png": "image/png",
+    ".svg": "image/svg+xml",
+    ".webp": "image/webp",
+    ".bmp": "image/bmp",
+    ".ico": "image/x-icon",
+    ".cur": "image/x-icon",
+    ".tif": "image/tiff",
+    ".tiff": "image/tiff",
+};
 
 async function processFlags(): Promise<InitArgs['flags']> {
     const promises = await Promise.allSettled(
@@ -16,35 +34,11 @@ async function processFlags(): Promise<InitArgs['flags']> {
 
         return {
             screen: 'read',
-            payload: {
-                path: NL_ARGS[i + 1],
-                name: "No name",
-                pages: await processComicBookFile(NL_ARGS[i + 1]),
-            }
+            payload: NL_ARGS[i + 1],
         };
     }
 
-    return { screen: 'home', payload: [] };
-}
-
-async function processComicBookFile(path: string): Promise<PageEntry[]> {
-    let reader = null;
-
-    try {
-        const content = await Neutralino.filesystem.readBinaryFile(path)
-            .then(c => new Uint8Array(c))
-            .then(a => new Uint8ArrayReader(a));
-        reader = new ZipReader(content);
-
-        const entries = await reader.getEntries();
-        return await Promise.all(
-            entries
-                .filter(entry => !entry.directory)
-                .map(entry => entry.getData!(new Data64URIWriter("image/jpg")))
-        );
-    } finally {
-        await reader?.close();
-    }
+    return { screen: 'home', payload: undefined };
 }
 
 processFlags().then(flags => {
@@ -52,23 +46,114 @@ processFlags().then(flags => {
         node: document.getElementById('main')!,
         flags,
     });
+    (window as any).app = app;
 
     app.ports.notifyPageChangePort.subscribe((obj) => {
         document.getElementById('page-container')?.scrollTo(0, 0);
         console.log('Changed page to', obj.currentPage);
     });
 
-    app.ports.requestOpenFilePort.subscribe(async (path) => {
-        const pages = await processComicBookFile(path);
+    app.ports.requestHistoryPort.subscribe(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 1000));
 
-        app.ports.onOpenFilePort.send({
-            name: "The thingy",
-            path,
-            pages,
+        console.warn("TODO: request history");
+
+        app.ports.onHistoryResultPort.send({
+            success: true,
+            payload: []
         });
     });
 
-    app.ports.openFileSelectModalPort.subscribe(async () => {
+    app.ports.requestPagesPort.subscribe(async (pagePayload) => {
+        let pageIndex = 0;
+
+        try {
+            const reader = await Neutralino.filesystem.readBinaryFile(pagePayload.path)
+                .then(bytes => new Uint8Array(bytes))
+                .then(bytes => JSZip.loadAsync(bytes));
+
+            for (; pageIndex < pagePayload.pages.length; pageIndex++) {
+                const page = pagePayload.pages[pageIndex];
+                const ext = page.substring(page.lastIndexOf('.'));
+                try {
+                    const entry = reader.file(page);
+                    if (!entry) {
+                        app.ports.onPageResultPort.send({
+                            success: false,
+                            error: {
+                                code: 'PAGE_NOT_FOUND',
+                                message: `Page "${page}" was not found the the archive. Archive path: ${pagePayload.path}`,
+                                page,
+                            }
+                        });
+                        continue;
+                    }
+
+                    app.ports.onPageResultPort.send({
+                        success: true,
+                        payload: {
+                            page: page,
+                            data: `data:image/${Images[ext]};base64,${await entry.async("base64")}`,
+                        }
+                    });
+                } catch (e) {
+                    app.ports.onPageResultPort.send({
+                        success: false,
+                        error: {
+                            code: typeof e.code === 'string' ? e.code : e.name,
+                            message: e.message,
+                            page,
+                        }
+                    });
+                }
+            }
+        } catch (e) {
+            for (; pageIndex < pagePayload.pages.length; pageIndex++) {
+                app.ports.onPageResultPort.send({
+                    success: false,
+                    error: {
+                        code: typeof e.code === 'string' ? e.code : e.name,
+                        message: e.message,
+                        page: pagePayload.pages[pageIndex],
+                    }
+                });
+            }
+        }
+    });
+
+    app.ports.requestMetadataPort.subscribe(async (path) => {
+        try {
+            const reader = await Neutralino.filesystem.readBinaryFile(path)
+                .then(bytes => new Uint8Array(bytes))
+                .then(bytes => JSZip.loadAsync(bytes));
+
+            const pages: string[] = [];
+            reader.forEach((filename: string) => {
+                const dot = filename.lastIndexOf('.');
+                if (dot >= 0 && filename.substring(dot) in Images) {
+                    pages.push(filename)
+                }
+            });
+
+            app.ports.onMetadataResultPort.send({
+                success: true,
+                payload: {
+                    pages,
+                    path,
+                }
+            })
+        } catch (e) {
+            app.ports.onMetadataResultPort.send({
+                success: false,
+                error: {
+                    code: typeof e.code === 'string' ? e.code : e.name,
+                    message: e.message,
+                }
+            });
+        }
+    });
+
+    app.ports.requestFileSelectModalPort.subscribe(async () => {
         const files = await Neutralino.os.showOpenDialog('Select Comic Book File', {
             filters: [
                 { name: "Comic Book (*.cbz)", extensions: ['cbz'] },
@@ -81,13 +166,7 @@ processFlags().then(flags => {
 
         if (files.length > 0) {
             const path = files[0];
-            const name = path.substring(Math.max(path.lastIndexOf('/'), path.lastIndexOf('\\')));
-
-            app.ports.onOpenFilePort.send({
-                path,
-                name,
-                pages: await processComicBookFile(path)
-            })
+            app.ports.onFileSelectedPort.send(path)
         }
     });
 });

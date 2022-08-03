@@ -1,14 +1,14 @@
 module Stateful exposing (..)
 
 
-type Stateful succ err
+type Stateful err succ
     = NotAsked
     | Loading
     | Success succ
     | Failure err
 
 
-map : (succA -> succB) -> Stateful succA err -> Stateful succB err
+map : (succA -> succB) -> Stateful err succA -> Stateful err succB
 map mapper stateful =
     case stateful of
         Success succ ->
@@ -24,7 +24,7 @@ map mapper stateful =
             NotAsked
 
 
-mapFailure : (errA -> errB) -> Stateful succ errA -> Stateful succ errB
+mapFailure : (errA -> errB) -> Stateful errA succ -> Stateful errB succ
 mapFailure mapper stateful =
     case stateful of
         Success succ ->
@@ -40,7 +40,7 @@ mapFailure mapper stateful =
             NotAsked
 
 
-hasRun : Stateful succ err -> Bool
+hasRun : Stateful err succ -> Bool
 hasRun stateful =
     case stateful of
         NotAsked ->
@@ -50,7 +50,7 @@ hasRun stateful =
             True
 
 
-isLoading : Stateful succ err -> Bool
+isLoading : Stateful err succ -> Bool
 isLoading stateful =
     case stateful of
         Success _ ->
@@ -60,7 +60,7 @@ isLoading stateful =
             False
 
 
-isFinished : Stateful succ err -> Bool
+isFinished : Stateful err succ -> Bool
 isFinished stateful =
     case stateful of
         Success _ ->
@@ -73,7 +73,7 @@ isFinished stateful =
             False
 
 
-withDefault : succ -> Stateful succ err -> succ
+withDefault : succ -> Stateful err succ -> succ
 withDefault default stateful =
     case stateful of
         Success succ ->
@@ -83,7 +83,7 @@ withDefault default stateful =
             default
 
 
-toMaybe : Stateful succ err -> Maybe succ
+toMaybe : Stateful err succ -> Maybe succ
 toMaybe stateful =
     case stateful of
         Success succ ->

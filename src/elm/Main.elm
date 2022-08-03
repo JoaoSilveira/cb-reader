@@ -8,7 +8,8 @@ import Html.Events exposing (..)
 import Json.Decode as D
 import Pages.Home
 import Pages.Reading
-import Ports exposing (onOpenFile, openFileSelectModal)
+import Ports exposing (onFileSelected, requestFileSelectModal)
+import Stateful
 
 
 main : Program D.Value Model Msg
@@ -38,13 +39,15 @@ type alias KeyboadData =
 init : D.Value -> ( Model, Cmd Msg )
 init flag =
     let
-        screenDecoderResolver : String -> D.Decoder Model
+        screenDecoderResolver : String -> D.Decoder ( Model, Cmd Msg )
         screenDecoderResolver screen =
             if screen == "home" then
-                D.map HomePageModel (D.field "payload" Pages.Home.modelDecoder)
+                D.succeed <| mapUpdate HomePageModel HomePageMsg (Pages.Home.init ())
 
             else if screen == "read" then
-                D.map ReadPageModel (D.field "payload" Pages.Reading.modelDecoder)
+                D.map
+                    (Pages.Reading.init >> mapUpdate ReadPageModel ReadPageMsg)
+                    D.string
 
             else
                 D.fail ""
@@ -56,17 +59,15 @@ init flag =
                 )
                 flag
     in
-    ( Result.withDefault
-        (HomePageModel [])
+    Result.withDefault
+        ( HomePageModel Stateful.NotAsked, Cmd.none )
         decodeResult
-    , Cmd.none
-    )
 
 
 type Msg
     = HomePageMsg Pages.Home.Msg
     | ReadPageMsg Pages.Reading.Msg
-    | OpenFile Pages.Reading.Model
+    | OpenFile String
     | CloseFile
     | OpenFileModal
     | NoOp
@@ -76,21 +77,25 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( msg, model ) of
         ( HomePageMsg homeMsg, HomePageModel homeModel ) ->
-            Pages.Home.update homeMsg homeModel
-                |> mapUpdate HomePageModel HomePageMsg
+            case Pages.Home.update homeMsg homeModel of
+                ( _, _, Pages.Home.ResumeReading path ) ->
+                    mapUpdate ReadPageModel ReadPageMsg <| Pages.Reading.init path
+
+                ( newModel, newMsg, _ ) ->
+                    mapUpdate HomePageModel HomePageMsg ( newModel, newMsg )
 
         ( ReadPageMsg readMsg, ReadPageModel readModel ) ->
             Pages.Reading.update readMsg readModel
                 |> mapUpdate ReadPageModel ReadPageMsg
 
-        ( OpenFile value, _ ) ->
-            ( ReadPageModel value, Cmd.none )
+        ( OpenFile path, _ ) ->
+            mapUpdate ReadPageModel ReadPageMsg <| Pages.Reading.init path
 
         ( CloseFile, _ ) ->
-            ( HomePageModel [], Cmd.none )
+            ( HomePageModel Stateful.NotAsked, Cmd.none )
 
         ( OpenFileModal, _ ) ->
-            ( model, openFileSelectModal )
+            ( model, requestFileSelectModal )
 
         ( _, _ ) ->
             ( model, Cmd.none )
@@ -189,10 +194,7 @@ subscriptions model =
     in
     Sub.batch
         [ modelSub
-        , onOpenFile
-            (D.decodeValue (D.map OpenFile Pages.Reading.modelDecoder)
-                >> Result.withDefault NoOp
-            )
+        , onFileSelected OpenFile
         , Browser.Events.onKeyDown keyDecoder
         ]
 

@@ -1,0 +1,194 @@
+{
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://raw.githubusercontent.com/JoaoSilveira/cb-reader/master/src/metadata.schema.json",
+    "title": "Comic Book Metadata",
+    "description": "Data about a comic book, such as author, date of relase, chapter number, etc...",
+    "type": "object",
+    "$defs": {
+        "set_of_strings": {
+            "type": "array",
+            "items": {
+                "type": "string"
+            },
+            "minItems": 1,
+            "uniqueItems": true
+        },
+        "date": {
+            "type": "string",
+            "format": "date",
+            "pattern": "\\d{4}-\\d{2}-\\d{2}"
+        },
+        "chapter": {
+            "type": "object",
+            "minProperties": 1,
+            "properties": {
+                "title": {
+                    "description": "The title of the chapter",
+                    "type": "string"
+                },
+                "number": {
+                    "description": "The sequence number of the chapter",
+                    "type": "number",
+                    "minimum": 0
+                },
+                "partial": {
+                    "description": "Whether this chapter is complete or a part of a chapter",
+                    "type": "boolean"
+                },
+                "extra": {
+                    "description": "Whether this chapter is part of the story or is extra content",
+                    "type": "boolean"
+                },
+                "authors": {
+                    "description": "The author(s) who wrote this specific chapter",
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "$ref": "#/$defs/set_of_strings"
+                        }
+                    ]
+                },
+                "artists": {
+                    "description": "The artist(s) who drawed this specific chapter. Same as \"authors\" if omitted",
+                    "anyOf": [
+                        {
+                            "type": "string"
+                        },
+                        {
+                            "$ref": "#/$defs/set_of_strings"
+                        }
+                    ]
+                },
+                "genres": {
+                    "description": "The literary genres of the comic book",
+                    "$ref": "#/$defs/set_of_strings"
+                },
+                "themes": {
+                    "description": "Themes addressed by the comic book",
+                    "$ref": "#/$defs/set_of_strings"
+                },
+                "releaseDate": {
+                    "description": "The release date of the chapter",
+                    "$ref": "#/$defs/date"
+                },
+                "tags": {
+                    "description": "Tags for the chapter. Usually a superset of \"genres\" and \"themes\"",
+                    "$ref": "#/$defs/set_of_strings"
+                },
+                "synopsis": {
+                    "description": "The synopsis of the chapter",
+                    "type": "string"
+                },
+                "oneshot": {
+                    "description": "Whether this specific chapter is an oneshot",
+                    "type": "boolean"
+                }
+            }
+        }
+    },
+    "properties": {
+        "title": {
+            "description": "The title, or name, of the comic book",
+            "type": "string"
+        },
+        "authors": {
+            "description": "The author(s) who wrote the comic book",
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "$ref": "#/$defs/set_of_strings"
+                }
+            ]
+        },
+        "artists": {
+            "description": "The artist(s) who drawed the comic book. Same as \"authors\" if omitted",
+            "anyOf": [
+                {
+                    "type": "string"
+                },
+                {
+                    "$ref": "#/$defs/set_of_strings"
+                }
+            ]
+        },
+        "genres": {
+            "description": "The literary genres of the comic book",
+            "$ref": "#/$defs/set_of_strings"
+        },
+        "themes": {
+            "description": "Themes addressed by the comic book",
+            "$ref": "#/$defs/set_of_strings"
+        },
+        "demographic": {
+            "description": "The demographic of the comic book",
+            "enum": [
+                "shounen",
+                "shoujo",
+                "seinen",
+                "josei",
+                "none"
+            ]
+        },
+        "releaseDate": {
+            "description": "The release date of the comic",
+            "$ref": "#/$defs/date"
+        },
+        "endDate": {
+            "description": "The release date of the last chapter of the comic",
+            "$ref": "#/$defs/date"
+        },
+        "status": {
+            "description": "The publication status of the comic book",
+            "enum": [
+                "ongoing",
+                "completed",
+                "hiatus",
+                "cancelled"
+            ]
+        },
+        "tags": {
+            "description": "Tags for the comic book. Usually a superset of \"genres\" and \"themes\"",
+            "$ref": "#/$defs/set_of_strings"
+        },
+        "synopsis": {
+            "description": "The synopsis of the comic book",
+            "type": "string"
+        },
+        "oneshot": {
+            "description": "Whether the comic is an oneshot or not",
+            "type": "boolean"
+        },
+        "chapters": {
+            "description": "The chapter(s) contained in this comic book",
+            "anyOf": [
+                {
+                    "$ref": "#/$defs/chapter"
+                },
+                {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/$defs/chapter"
+                    },
+                    "minItems": 1
+                }
+            ]
+        },
+        "custom": {
+            "description": "Custom property for program specific data",
+            "type": [
+                "string",
+                "number",
+                "array",
+                "object",
+                "boolean"
+            ]
+        }
+    },
+    "required": [
+        "title"
+    ]
+}

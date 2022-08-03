@@ -1,14 +1,12 @@
 {
   "compilerOptions": {
-    "module": "ESNext",
-    "moduleResolution": "node",
+    "module": "ES6",
+    "target": "es5",
+    "moduleResolution": "Node",
     "noImplicitAny": true,
     "removeComments": true,
     "preserveConstEnums": true,
     "sourceMap": true,
-    "outDir": "assets/js",
-    // "rootDir": "src/typescript",
     "strictNullChecks": true,
-    "target": "ESNext",
   }
 }

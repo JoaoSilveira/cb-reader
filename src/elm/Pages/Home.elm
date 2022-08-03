@@ -1,71 +1,98 @@
-module Pages.Home exposing (Model, Msg, modelDecoder, subscriptions, update, view)
+module Pages.Home exposing (Model, Msg, OutMsg(..), init, subscriptions, update, view)
 
-import DecoderUtil exposing (optionalPageDecoder)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
-import Json.Decode as D
-import Ports exposing (openFileSelectModal, requestOpenFile)
-
-
-type alias ReadEntry =
-    { name : String
-    , path : String
-    , lastReadPage : Int
-    }
+import Payloads
+import Ports exposing (onHistoryResult, requestFileSelectModal, requestHistory)
+import Stateful exposing (Stateful(..))
 
 
 type alias Model =
-    List ReadEntry
+    Payloads.PortStateful Payloads.History
 
 
 type Msg
-    = ResumeReading String
+    = OpenFile String
+    | RequestHistory
+    | HistoryResult (Payloads.PortResult Payloads.History)
     | OpenFileModal
 
 
-modelDecoder : D.Decoder Model
-modelDecoder =
-    D.list <|
-        D.map3 ReadEntry
-            (D.field "name" D.string)
-            (D.field "path" D.string)
-            (optionalPageDecoder "lastReadPage")
+type OutMsg
+    = ResumeReading String
+    | NoOp
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
+init : () -> ( Model, Cmd Msg )
+init _ =
+    ( Loading, requestHistory )
+
+
+update : Msg -> Model -> ( Model, Cmd Msg, OutMsg )
 update msg model =
-    case msg of
-        ResumeReading path ->
-            ( model, requestOpenFile path )
+    case ( model, msg ) of
+        ( NotAsked, RequestHistory ) ->
+            ( Loading, requestHistory, NoOp )
 
-        OpenFileModal ->
-            ( model, openFileSelectModal )
+        ( Loading, HistoryResult (Ok payload) ) ->
+            ( Stateful.Success payload, Cmd.none, NoOp )
+
+        ( Loading, HistoryResult (Err err) ) ->
+            ( Stateful.Failure err, Cmd.none, NoOp )
+
+        ( Success _, OpenFile path ) ->
+            ( model, Cmd.none, ResumeReading path )
+
+        ( Failure _, RequestHistory ) ->
+            ( Loading, requestHistory, NoOp )
+
+        ( _, OpenFileModal ) ->
+            ( model, requestFileSelectModal, NoOp )
+
+        _ ->
+            ( model, Cmd.none, NoOp )
 
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    Sub.none
+    onHistoryResult HistoryResult
 
 
 view : Model -> Html Msg
 view model =
     let
-        mapListItem : ReadEntry -> Html Msg
-        mapListItem item =
-            button [ onClick (ResumeReading item.path) ]
-                [ h3 [] [ text item.name ]
-                , span [] [ text <| String.fromInt item.lastReadPage ]
+        historyItem : Payloads.HistoryEntry -> Html Msg
+        historyItem item =
+            button [ onClick (OpenFile item.path) ]
+                [ h3 [] [ text item.title ]
+                , span [] [ text <| String.fromInt item.page ]
                 , small [] [ text item.path ]
                 ]
 
-        readList : List (Html Msg)
-        readList =
-            List.map mapListItem model
+        content : Html Msg
+        content =
+            case model of
+                NotAsked ->
+                    button [ onClick RequestHistory ] [ text "Load History" ]
+
+                Loading ->
+                    p [] [ text "loading" ]
+
+                Success payload ->
+                    if List.isEmpty payload then
+                        p [] [ text "No history" ]
+
+                    else
+                        ul [] <| List.map historyItem payload
+
+                Failure err ->
+                    div []
+                        [ p [] [ text err.message ]
+                        , button [ onClick RequestHistory ] [ text "Try Again" ]
+                        ]
     in
     div []
-        [ h1 [] []
-        , p [] []
-        , button [ onClick OpenFileModal ] [ text "select file" ]
-        , div [] readList
+        [ button [ onClick OpenFileModal ] [ text "select file" ]
+        , content
         ]

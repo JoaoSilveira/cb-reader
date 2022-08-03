@@ -170,55 +170,15 @@
     #pages-bar>div:last-child {
       border-right: none;
     }
-    #test {
-      height: 200px;
-      background: lightgray;
-    }
   </style>
+  <script src="js/jszip.min.js"></script>
 </head>
 
 <body>
-  <div id="test">
-    <input type="file"/>
-  </div>
   <div id="main"></div>
   <script src="js/neutralino.js"></script>
   <!-- Your app's source files -->
-  <script src="js/main.js"></script>
   <script src="js/code.js"></script>
-  <script>
-    document.addEventListener('DOMContentLoaded', () => {
-      const div = document.getElementById('test');
-
-      // div.addEventListener('drop', testDrop, false);
-      // div.addEventListener('dragenter', stop, false);
-      // div.addEventListener('dragover', stop, false);
-
-      div.children[0].addEventListener('change', inputTest);
-    });
-
-    function inputTest(event) {
-      stop(event);
-
-      const file = event.target.files[0];
-      if (!file) return;
-
-      console.log(file);
-    }
-
-    function stop(event) {
-      event.stopPropagation();
-      event.preventDefault();
-    }
-    function testDrop(event) {
-      stop(event);
-
-      const file = event.dataTransfer?.files?.[0];
-      if (!file) return;
-
-      console.log(file);
-    }
-  </script>
 </body>
 
 </html>
