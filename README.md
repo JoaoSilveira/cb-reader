@@ -79,4 +79,4 @@ Each archive can have its own metadata, but it is not mandatory
 
 ## Metadata File Format
 
-The 
+TODO
