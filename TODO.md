@@ -30,6 +30,7 @@
 
 # Home
 
+- [ ] Display loading indicator
 - [ ] Show history by newer
 - [ ] Make history sortable
 - [ ] Make history searchable
