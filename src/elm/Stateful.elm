@@ -40,19 +40,47 @@ mapFailure mapper stateful =
             NotAsked
 
 
-hasRun : Stateful err succ -> Bool
-hasRun stateful =
+hasStarted : Stateful err succ -> Bool
+hasStarted stateful =
+    isNotAsked stateful |> not
+
+
+hasFinished : Stateful err succ -> Bool
+hasFinished stateful =
     case stateful of
         NotAsked ->
             False
 
+        Loading ->
+            False
+
         _ ->
             True
+
+
+isNotAsked : Stateful err succ -> Bool
+isNotAsked stateful =
+    case stateful of
+        NotAsked ->
+            True
+
+        _ ->
+            False
 
 
 isLoading : Stateful err succ -> Bool
 isLoading stateful =
     case stateful of
+        Loading ->
+            True
+
+        _ ->
+            False
+
+
+isSuccess : Stateful err succ -> Bool
+isSuccess stateful =
+    case stateful of
         Success _ ->
             True
 
@@ -60,12 +88,9 @@ isLoading stateful =
             False
 
 
-isFinished : Stateful err succ -> Bool
-isFinished stateful =
+isFailure : Stateful err succ -> Bool
+isFailure stateful =
     case stateful of
-        Success _ ->
-            True
-
         Failure _ ->
             True
 

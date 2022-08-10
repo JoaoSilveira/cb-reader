@@ -68,24 +68,27 @@ pagesRequestEncode payload =
         ]
 
 
-pageChangeEncode : Payloads.PageChange -> E.Value
-pageChangeEncode payload =
-    E.object
-        [ ( "currentPage", E.int payload.currentPage )
-        , ( "path", E.string payload.path )
-        ]
-
-
 historyDecoder : D.Decoder Payloads.History
 historyDecoder =
     D.map5
         Payloads.HistoryEntry
-        (D.field "title" D.string)
-        (D.field "author" D.string)
+        (D.maybe (D.field "title" D.string))
+        (D.maybe (D.field "author" D.string))
         (D.maybe (D.field "chapter" D.int))
-        (D.field "page" D.int)
+        (D.field "page" D.string)
         (D.field "path" D.string)
         |> D.list
+
+
+historyEntryEncode : Payloads.HistoryEntry -> E.Value
+historyEntryEncode entry =
+    E.object
+        [ ( "title", Maybe.withDefault E.null (Maybe.map E.string entry.title) )
+        , ( "author", Maybe.withDefault E.null (Maybe.map E.string entry.author) )
+        , ( "chapter", Maybe.withDefault E.null (Maybe.map E.int entry.chapter) )
+        , ( "page", E.string entry.page )
+        , ( "path", E.string entry.path )
+        ]
 
 
 dateDecoder : D.Decoder Posix

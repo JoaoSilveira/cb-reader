@@ -35,7 +35,7 @@ export type InitArgs = {
 };
 
 type NotifyPageChangePayload = {
-    currentPage: number,
+    page: string,
     path: string,
 };
 
@@ -46,13 +46,20 @@ type PageRequestPayload = {
     path: string
 };
 
-type HistoryEntry = {
-    title: string,
-    author: string,
-    chapter?: number,
-    page: number,
-    path: string
-};
+interface HistoryEntry {
+    /** The path to the archive */
+    path: string;
+    /** The path of the last page read */
+    page: string;
+    /** The datetime of the entry */
+    date: number;
+    /** The thumbnail of the comic book (first page if no thumbnail in the archive) */
+    thumbnail: string;
+    /** The title of the comic book */
+    title?: string;
+    /** The author of the comic book */
+    author?: string;
+}
 
 type PageResultPayload = {
     page: String,
@@ -74,7 +81,7 @@ type CBChapter = {
     oneshot?: boolean,
 };
 
-type CBInfo = {
+export type CBInfo = {
     title: string,
     authors?: string[],
     artists?: string[],

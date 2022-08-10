@@ -14,10 +14,10 @@ type alias PortResult payload =
 
 
 type alias HistoryEntry =
-    { title : String
-    , author : String
+    { title : Maybe String
+    , author : Maybe String
     , chapter : Maybe Int
-    , page : Int
+    , page : String
     , path : String
     }
 
@@ -28,12 +28,6 @@ type alias History =
 
 type alias PageRequest =
     { pages : List String
-    , path : String
-    }
-
-
-type alias PageChange =
-    { currentPage : Int
     , path : String
     }
 

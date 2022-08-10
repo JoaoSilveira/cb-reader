@@ -2,6 +2,7 @@ module Pages.Reading exposing (Model, Msg, init, subscriptions, update, view)
 
 import Array exposing (Array)
 import Browser.Events
+import Components.PagesBar
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -29,6 +30,7 @@ type PageEntry
 type alias ReadingModel =
     { name : String
     , path : String
+    , metadata : Maybe Payloads.CBFile
     , pages : Array PageEntry
     , currentPage : Int
     }
@@ -55,6 +57,7 @@ type Msg
     | PageResult (Result Payloads.PageLoadError Payloads.PageLoaded)
     | NoOp
     | MetadataResult (Payloads.PortResult Payloads.CBFile)
+    | PagesBarMsg Components.PagesBar.Msg
 
 
 init : String -> ( Model, Cmd Msg )
@@ -70,8 +73,10 @@ update msg model =
 
         ( Stateful.Loading, MetadataResult (Ok file) ) ->
             let
+                indexOf : Array a -> a -> Maybe Int
                 indexOf list item =
                     let
+                        recurse : Int -> Maybe Int
                         recurse index =
                             case Array.get index list of
                                 Just head ->
@@ -103,6 +108,7 @@ update msg model =
                     { pages = Array.indexedMap convertPage file.pages
                     , path = file.path
                     , name = ""
+                    , metadata = Nothing
                     , currentPage = Maybe.andThen (indexOf file.pages) file.lastPageRead |> Maybe.withDefault 0
                     }
 
@@ -144,8 +150,26 @@ update msg model =
                         Double left right ->
                             [ left.path, right.path ] ++ pageList
 
+                currentPagePath =
+                    case Array.get pageIndex payload.pages of
+                        Just (Single page) ->
+                            page.path
+
+                        Just (Double page _) ->
+                            page.path
+
+                        _ ->
+                            ""
+
+                notifyPageChangeCommand : Cmd msg
                 notifyPageChangeCommand =
-                    notifyPageChange { currentPage = pageIndex, path = payload.path }
+                    notifyPageChange
+                        { title = Nothing
+                        , author = Nothing
+                        , chapter = Nothing
+                        , page = currentPagePath
+                        , path = payload.path
+                        }
 
                 nextPagesToLoad =
                     Array.slice pageIndex (pageIndex + 5) payload.pages
@@ -291,6 +315,11 @@ update msg model =
                         Nothing ->
                             ( model, Cmd.none )
 
+        ( Success _, PagesBarMsg pbMsg ) ->
+            case Components.PagesBar.update pbMsg of
+                Components.PagesBar.PageChange index ->
+                    update (GoToPage index) model
+
         ( _, _ ) ->
             ( model, Cmd.none )
 
@@ -337,18 +366,6 @@ subscriptions model =
 view : Model -> Html Msg
 view model =
     let
-        pageItem currentPage index =
-            div
-                [ onClick <| GoToPage index
-                , classList [ ( "active", index <= currentPage ) ]
-                ]
-                [ p [] [ text <| String.fromInt (index + 1) ] ]
-
-        pagesBar quantity currentPage =
-            div
-                [ id "pages-bar" ]
-                (List.map (pageItem currentPage) <| List.range 0 quantity)
-
         printSinglePage : String -> Payloads.PortStateful String -> Html Msg
         printSinglePage width image =
             case image of
@@ -393,6 +410,42 @@ view model =
                 (D.at [ "target", "clientWidth" ] D.float)
                 |> D.andThen decideWhichPage
                 |> D.map (\msg -> ( msg, True ))
+
+        mapPageToEmpty : PageEntry -> Stateful () ()
+        mapPageToEmpty page =
+            case page of
+                Single p ->
+                    Stateful.mapFailure (always ()) <| Stateful.map (always ()) p.data
+
+                Double l r ->
+                    case
+                        ( Stateful.mapFailure (always ()) <| Stateful.map (always ()) l.data
+                        , Stateful.mapFailure (always ()) <| Stateful.map (always ()) r.data
+                        )
+                    of
+                        ( Loading, _ ) ->
+                            Loading
+
+                        ( _, Loading ) ->
+                            Loading
+
+                        ( Failure _, _ ) ->
+                            Failure ()
+
+                        ( _, Failure _ ) ->
+                            Failure ()
+
+                        ( Success _, Success _ ) ->
+                            Success ()
+
+                        ( _, _ ) ->
+                            Failure ()
+
+        pagesPayload : ReadingModel -> Components.PagesBar.Model
+        pagesPayload payload =
+            { pages = Array.map mapPageToEmpty payload.pages
+            , currentPage = payload.currentPage
+            }
     in
     case model of
         Stateful.NotAsked ->
@@ -410,7 +463,7 @@ view model =
                     , Html.Events.preventDefaultOn "contextmenu" <| D.succeed ( NoOp, True )
                     ]
                     (printCurrentPage payload)
-                , pagesBar (Array.length payload.pages) payload.currentPage
+                , Html.map PagesBarMsg (Components.PagesBar.view <| pagesPayload payload)
                 ]
 
         Stateful.Failure err ->

@@ -1,4 +1,5 @@
-import Elm, { InitArgs } from './elm';
+import Elm, { CBInfo, InitArgs } from './elm';
+import History from './history';
 
 const Images: Record<string, string> = {
     ".apng": "image/apng",
@@ -48,20 +49,30 @@ processFlags().then(flags => {
     });
     (window as any).app = app;
 
-    app.ports.notifyPageChangePort.subscribe((obj) => {
+    app.ports.notifyPageChangePort.subscribe(async (obj) => {
+        const now = Date.now();
         document.getElementById('page-container')?.scrollTo(0, 0);
-        console.log('Changed page to', obj.currentPage);
+
+        await History.update(obj.path, (entry) => ({ ...entry, page: obj.page, date: now }));
     });
 
     app.ports.requestHistoryPort.subscribe(async () => {
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-
-        console.warn("TODO: request history");
-
-        app.ports.onHistoryResultPort.send({
-            success: true,
-            payload: []
-        });
+        try {
+            // @ts-ignore
+            // await History.remove({ path: "D:/manga/Passing Exams by Homunculus.cbz" });
+            app.ports.onHistoryResultPort.send({
+                success: true,
+                payload: await History.list(),
+            });
+        } catch (err) {
+            app.ports.onHistoryResultPort.send({
+                success: false,
+                error: {
+                    code: typeof err.code === 'string' ? err.code : err.name,
+                    message: err.message,
+                }
+            });
+        }
     });
 
     app.ports.requestPagesPort.subscribe(async (pagePayload) => {
@@ -128,20 +139,47 @@ processFlags().then(flags => {
                 .then(bytes => JSZip.loadAsync(bytes));
 
             const pages: string[] = [];
+            let thumbnail: string | null = null;
             reader.forEach((filename: string) => {
                 const dot = filename.lastIndexOf('.');
-                if (dot >= 0 && filename.substring(dot) in Images) {
-                    pages.push(filename)
+                if (dot < 0 || !(filename.substring(dot) in Images)) {
+                    return;
+                }
+
+                if (filename.endsWith('thumbnail' + filename.substring(dot))) {
+                    thumbnail = filename;
+                } else {
+                    pages.push(filename);
                 }
             });
 
+            const json = await reader.file("metadata.json")?.async("string");
+            const meta = json != null ? JSON.parse(json) : undefined;
+
+            const hist = await History.findByPath(path);
             app.ports.onMetadataResultPort.send({
                 success: true,
                 payload: {
                     pages,
                     path,
+                    lastPageRead: hist?.page,
+                    thumbnail: thumbnail ?? pages[0],
+                    info: meta != null ? JSON.parse(meta) : undefined,
                 }
-            })
+            });
+
+            if (hist) {
+                await History.update({ ...hist, date: Date.now() });
+            } else {
+                await History.add({
+                    date: Date.now(),
+                    page: pages[0],
+                    path,
+                    thumbnail: pages[0],
+                    title: meta?.title,
+                    author: meta?.author?.join?.(', ') ?? meta?.author,
+                });
+            }
         } catch (e) {
             app.ports.onMetadataResultPort.send({
                 success: false,
@@ -156,8 +194,8 @@ processFlags().then(flags => {
     app.ports.requestFileSelectModalPort.subscribe(async () => {
         const files = await Neutralino.os.showOpenDialog('Select Comic Book File', {
             filters: [
-                { name: "Comic Book (*.cbz)", extensions: ['cbz'] },
                 { name: "Zip Archive or Comic Book (*.cbz|*.zip)", extensions: ['cbz', 'zip'] },
+                { name: "Comic Book (*.cbz)", extensions: ['cbz'] },
                 { name: "Zip Archive (*.zip)", extensions: ['zip'] },
                 { name: "All Files (*.*)", extensions: ['*'] },
             ],

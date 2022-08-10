@@ -93,7 +93,7 @@
             "description": "The title, or name, of the comic book",
             "type": "string"
         },
-        "authors": {
+        "author": {
             "description": "The author(s) who wrote the comic book",
             "anyOf": [
                 {
@@ -104,7 +104,7 @@
                 }
             ]
         },
-        "artists": {
+        "artist": {
             "description": "The artist(s) who drawed the comic book. Same as \"authors\" if omitted",
             "anyOf": [
                 {

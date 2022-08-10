@@ -62,11 +62,20 @@ subscriptions _ =
 view : Model -> Html Msg
 view model =
     let
+        extractFilename : String -> String
+        extractFilename path =
+            case List.reverse <| String.indexes "/" path of
+                barIndex :: _ ->
+                    String.slice (barIndex + 1) (String.length path) path
+
+                _ ->
+                    path
+
         historyItem : Payloads.HistoryEntry -> Html Msg
         historyItem item =
             button [ onClick (OpenFile item.path) ]
-                [ h3 [] [ text item.title ]
-                , span [] [ text <| String.fromInt item.page ]
+                [ h3 [] [ text <| Maybe.withDefault (extractFilename item.path) item.title ]
+                , span [] [ text item.page ]
                 , small [] [ text item.path ]
                 ]
 
@@ -88,7 +97,8 @@ view model =
 
                 Failure err ->
                     div []
-                        [ p [] [ text err.message ]
+                        [ h1 [] [ text err.code ]
+                        , p [] [ text err.message ]
                         , button [ onClick RequestHistory ] [ text "Try Again" ]
                         ]
     in

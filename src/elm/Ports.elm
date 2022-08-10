@@ -33,9 +33,9 @@ port onMetadataResultPort : (D.Value -> msg) -> Sub msg
 port onPageResultPort : (D.Value -> msg) -> Sub msg
 
 
-notifyPageChange : Payloads.PageChange -> Cmd msg
+notifyPageChange : Payloads.HistoryEntry -> Cmd msg
 notifyPageChange payload =
-    notifyPageChangePort <| Converters.pageChangeEncode payload
+    notifyPageChangePort <| Converters.historyEntryEncode payload
 
 
 requestFileSelectModal : Cmd msg
