@@ -1,0 +1,12 @@
+[submodule "deps/zigwin32"]
+	path = deps/zigwin32
+	url = https://github.com/marlersoft/zigwin32
+[submodule "deps/raylib-zig"]
+	path = deps/raylib-zig
+	url = https://github.com/Not-Nik/raylib-zig.git
+[submodule "deps/raylib.zig"]
+	path = deps/raylib.zig
+	url = https://github.com/ryupold/raylib.zig
+[submodule "deps/--recursive"]
+	path = deps/--recursive
+	url = https://github.com/ryupold/raylib.zig
