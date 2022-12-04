@@ -4,9 +4,3 @@
 [submodule "deps/raylib-zig"]
 	path = deps/raylib-zig
 	url = https://github.com/Not-Nik/raylib-zig.git
-[submodule "deps/raylib.zig"]
-	path = deps/raylib.zig
-	url = https://github.com/ryupold/raylib.zig
-[submodule "deps/--recursive"]
-	path = deps/--recursive
-	url = https://github.com/ryupold/raylib.zig

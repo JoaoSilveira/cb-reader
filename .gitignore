@@ -1,22 +1,4 @@
-# Developer tools' files
-.lite_workspace.lua
-
-# Neutralinojs binaries and builds
-/bin
-/dist
-
-# Neutralinojs client (minified)
-neutralino.js
-
-# Neutralinojs related files
-.storage
-*.log
-
-# Other configuration
-.tmp
-.github
+zig-cache
+zig-out
 elm-stuff
-node_modules
 assets/js
-package-lock.json
-.cjsescache

@@ -2,63 +2,25 @@
     "version": "2.0.0",
     "tasks": [
         {
-            "label": "Build Debug Elm code",
+            "label": "build debug",
             "type": "shell",
-            "command": "elm make src\\elm\\Main.elm --output=assets\\js\\elm.js",
-            "presentation": {
-                "reveal": "silent"
-            },
-            "group": "build"
-        },
-        {
-            "label": "Build Optimized Elm code",
-            "type": "shell",
-            "command": "elm make src\\elm\\Main.elm --optimize --output=assets\\js\\elm.opt.js",
-            "presentation": {
-                "reveal": "silent"
-            },
-            "group": "build"
-        },
-        {
-            "label": "Minify elm",
-            "type": "shell",
-            "command": "npx uglifyjs assets\\js\\elm.opt.js --compress pure_funcs=[F2,F3,F4,F5,F6,F7,F8,F9,A2,A3,A4,A5,A6,A7,A8,A9],pure_getters,keep_fargs=false,unsafe_comps,unsafe | npx uglifyjs --mangle --output assets\\js\\elm.js",
             "group": "build",
-            "presentation": {
-                "reveal": "silent"
+            "options": {
+                "cwd": "${workspaceFolder}"
             },
-            "dependsOn": "Build Optimized Elm code"
+            "command": "zig build",
+            "problemMatcher": [],
+            
         },
         {
-            "label": "Delete Dangling js",
+            "label": "build release",
             "type": "shell",
-            "command": "del assets\\js\\elm.opt.js",
-            "presentation": {
-                "reveal": "never"
-            },
             "group": "build",
-            "dependsOn": "Minify elm"
-        },
-        {
-            "label": "Run Debug Code",
-            "type": "shell",
-            "command": "neu run",
-            "group": "none",
-            "presentation": {
-                "reveal": "silent",
-                "clear": true
+            "options": {
+                "cwd": "${workspaceFolder}"
             },
-            "dependsOn": "Build Debug Elm code"
-        },
-        {
-            "label": "Build project",
-            "type": "shell",
-            "command": "neu build --release",
-            "presentation": {
-                "reveal": "silent",
-                "clear": true
-            },
-            "dependsOn": "Delete Dangling js"
+            "command": "zig build -Drelease-safe=true",
+            "problemMatcher": []
         }
     ]
 }
