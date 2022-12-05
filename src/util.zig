@@ -29,6 +29,13 @@ const cb_extensions = std.ComptimeStringMap([:0]const u8, .{
     .{ ".rar", "Rar Archive" },
 });
 
+pub fn centerOnContainer(container: rl.Vector2, box: rl.Vector2) rl.Vector2 {
+    return .{
+        .x = (container.x - box.x) / 2,
+        .y = (container.y - box.y) / 2,
+    };
+}
+
 pub fn safeClamp(value: anytype, min: anytype, max: anytype) @TypeOf(value, min, max) {
     return std.math.clamp(value, std.math.min(min, max), std.math.max(min, max));
 }
@@ -58,7 +65,7 @@ pub fn clampVector2(vector: rl.Vector2, min: rl.Vector2, max: rl.Vector2) rl.Vec
     };
 }
 
-pub fn isArchiveFile(filepath: [:0]const u8) bool {
+pub fn isArchiveFile(filepath: []const u8) bool {
     if (getFileExtension(filepath)) |ext| {
         return cb_extensions.has(ext);
     }
@@ -66,7 +73,7 @@ pub fn isArchiveFile(filepath: [:0]const u8) bool {
     return false;
 }
 
-pub fn getImageMime(filename: [:0]const u8) ![]const u8 {
+pub fn getImageMime(filename: []const u8) ?[:0]const u8 {
     if (getFileExtension(filename)) |ext| {
         var buff = [1]u8{0} ** 10;
 
@@ -74,16 +81,16 @@ pub fn getImageMime(filename: [:0]const u8) ![]const u8 {
             buff[i] = std.ascii.toLower(char);
         }
 
-        return images_extensions.get(buff[0..ext.len]) orelse error.MimeNotFound;
+        return images_extensions.get(buff[0..ext.len]);
     }
 
-    return error.MimeNotFound;
+    return null;
 }
 
-pub fn isImageFilename(filename: [:0]const u8) bool {
-    return if (getImageMime(filename)) |_| true else |_| false;
+pub fn isImageFilename(filename: []const u8) bool {
+    return if (getImageMime(filename)) |_| true else false;
 }
 
-pub fn getFileExtension(filepath: [:0]const u8) ?[:0]const u8 {
+pub fn getFileExtension(filepath: anytype) ?@TypeOf(filepath) {
     return if (std.mem.indexOfScalar(u8, filepath, '.')) |index| filepath[index..] else null;
 }

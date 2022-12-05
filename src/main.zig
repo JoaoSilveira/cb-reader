@@ -7,76 +7,9 @@ const rl = @import("raylib");
 const Image = @import("image.zig");
 const ComicBook = @import("comic_book.zig");
 const ReadingManager = @import("reading_manager.zig");
+const util = @import("util.zig");
 
 const Tuple = std.meta.Tuple;
-
-const utils = struct {
-    const images_extensions = std.ComptimeStringMap([:0]const u8, .{
-        .{ ".apng", "image/apng" },
-        .{ ".avif", "image/avif" },
-        .{ ".gif", "image/gif" },
-        .{ ".jpg", "image/jpeg" },
-        .{ ".jpeg", "image/jpeg" },
-        .{ ".jfif", "image/jpeg" },
-        .{ ".pjpeg", "image/jpeg" },
-        .{ ".pjp", "image/jpeg" },
-        .{ ".png", "image/png" },
-        .{ ".svg", "image/svg+xml" },
-        .{ ".webp", "image/webp" },
-        .{ ".bmp", "image/bmp" },
-        .{ ".ico", "image/x-icon" },
-        .{ ".cur", "image/x-icon" },
-        .{ ".tif", "image/tiff" },
-        .{ ".tiff", "image/tiff" },
-    });
-
-    const cb_extensions = std.ComptimeStringMap([:0]const u8, .{
-        .{ ".cbz", "Comic Book Zip" },
-        .{ ".cb7", "Comic Book 7zip" },
-        .{ ".cbr", "Comic Book Rar" },
-        .{ ".zip", "Zip Archive" },
-        .{ ".7z", "7zip Archive" },
-        .{ ".rar", "Rar Archive" },
-    });
-
-    pub fn isArchiveFile(filepath: [:0]const u8) bool {
-        if (getFileExtension(filepath)) |ext| {
-            return cb_extensions.has(ext);
-        }
-
-        return false;
-    }
-
-    fn getImageMime(filename: [:0]const u8) ![]const u8 {
-        if (getFileExtension(filename)) |ext| {
-            var buff = [1]u8{0} ** 10;
-
-            for (ext) |char, i| {
-                buff[i] = std.ascii.toLower(char);
-            }
-
-            return images_extensions.get(buff[0..ext.len]) orelse error.MimeNotFound;
-        }
-
-        return error.MimeNotFound;
-    }
-
-    fn isImageFilename(filename: [:0]const u8) bool {
-        return if (getImageMime(filename)) |_| true else |_| false;
-    }
-
-    fn getFileExtension(filepath: [:0]const u8) ?[:0]const u8 {
-        return if (std.mem.indexOfScalar(u8, filepath, '.')) |index| filepath[index..] else null;
-    }
-
-    pub fn centerOnContainer(container: rl.Vector2, box: rl.Vector2) rl.Vector2 {
-        _ = box;
-        return .{
-            .x = (container.x - box.x) / 2,
-            .y = (container.y - box.y) / 2,
-        };
-    }
-};
 
 fn Rect(comptime number_type: type) type {
     return struct {
@@ -234,7 +167,7 @@ const HomePage = struct {
                 const file_path = files.paths[0];
                 const path_len = std.mem.len(file_path);
 
-                if (utils.isArchiveFile(file_path[0..path_len :0])) {
+                if (util.isArchiveFile(file_path[0..path_len :0])) {
                     const reading_page = self.application.allocator().create(ReadingPage) catch {
                         self.error_message = "Could not open the archive due to no memory";
                         return;
@@ -265,7 +198,7 @@ const HomePage = struct {
         rl.DrawTextEx(
             self.font,
             text,
-            utils.centerOnContainer(.{ .x = width, .y = height }, text_size),
+            util.centerOnContainer(.{ .x = width, .y = height }, text_size),
             font_size,
             spacing,
             rl.SKYBLUE,
@@ -337,7 +270,8 @@ const ReadingPage = struct {
         const data = try self.comic_book.readPageAt(page_index, self.application.allocator());
         defer self.application.allocator().free(data);
 
-        self.page_map[page_index] = try bytesToTexture(utils.getFileExtension(self.comic_book.pages[page_index]).?, data);
+        self.page_map[page_index] = try bytesToTexture(util.getFileExtension(self.comic_book.pages[page_index]).?, data);
+
         return self.page_map[page_index].?;
     }
 
@@ -416,6 +350,20 @@ const ReadingPage = struct {
     }
 };
 
+pub fn tryOpenArgFile(application: *Application) !Page {
+    const args = try std.process.argsAlloc(application.allocator());
+    defer std.process.argsFree(application.allocator(), args);
+
+    if (args.len < 2) return error.NoArgProvided;
+    if (!util.isArchiveFile(args[1])) return error.NotArchiveFile;
+
+    const reading_page = try application.allocator().create(ReadingPage);
+    errdefer application.allocator().destroy(reading_page);
+
+    reading_page.* = try ReadingPage.init(application, args[1]);
+    return Page{ .Reading = reading_page };
+}
+
 pub fn main() void {
     rl.SetConfigFlags(.{ .Flags = .{
         .window_resizable = true,
@@ -448,6 +396,10 @@ pub fn main() void {
             break :create_home page;
         },
     };
+
+    if (tryOpenArgFile(&application)) |page| {
+        application.transitionToPage(page);
+    } else |_| {}
 
     while (!rl.WindowShouldClose()) {
         rl.BeginDrawing();

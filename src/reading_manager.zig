@@ -84,8 +84,7 @@ pub fn init(path: []const u8, allocator: std.mem.Allocator) !Self {
         .Object => |map| {
             var iter = map.iterator();
             while (iter.next()) |entry| {
-                const dupe_key = try allocator.dupe(u8, entry.key_ptr.*);
-                std.log.debug("read key: {s}", .{dupe_key});
+                const dupe_key = try std.ascii.allocLowerString(allocator, entry.key_ptr.*);
 
                 try keys.append(dupe_key);
                 try cache.put(dupe_key, try CacheEntry.parseFromValue(entry.value_ptr.*));
@@ -114,22 +113,22 @@ pub fn deinit(self: *Self, allocator: std.mem.Allocator) void {
 }
 
 pub fn getEntryControl(self: *Self, path: []const u8) !CacheEntryControl {
-    const result = try self.cache.getOrPut(path);
+    const lower_key = try std.ascii.allocLowerString(self.keys.allocator, path);
+    errdefer self.keys.allocator.free(lower_key);
+
+    const result = try self.cache.getOrPut(lower_key);
 
     if (!result.found_existing) {
-        const dupe_key = try self.keys.allocator.dupe(u8, path);
-        try self.keys.append(dupe_key);
+        try self.keys.append(lower_key);
 
         result.value_ptr.* = CacheEntry{
             .read = false,
             .reading_again = false,
             .last_page = 0,
         };
-
-        result.key_ptr.* = dupe_key;
+    } else {
+        self.keys.allocator.free(lower_key);
     }
-
-    std.log.info("key: {s}", .{path});
 
     return CacheEntryControl{
         .manager = self,
@@ -152,7 +151,6 @@ pub fn persist(self: Self) !void {
 
     var it = self.cache.iterator();
     while (it.next()) |entry| {
-        std.log.info("{s}", .{entry.key_ptr.*});
         if (it.index > 1) {
             try writer.writeByte(',');
         }
